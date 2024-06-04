@@ -7,7 +7,7 @@ results/voxblox/
 results/robopen/
 
 todo.md
-
+data/
 data/gt_sdfs
 data/seqs
 data/eval_pts
