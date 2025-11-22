@@ -36,14 +36,17 @@ def sdf_render_depth(z_vals, sdf):
 
 
 # Compute surface normals in the camera frame
-def render_normals(T_WC, render_depth, sdf_map, dirs_C):
+def render_normals(T_WC, render_depth, sdf_map, dirs_C,use_entropy=False):
     origins, dirs_W = transform.origin_dirs_W(T_WC, dirs_C)
     origins = origins.view(-1, 3)
     dirs_W = dirs_W.view(-1, 3)
 
     pc = origins + (dirs_W * (render_depth.flatten()[:, None]))
     pc.requires_grad_()
-    sdf = sdf_map(pc)
+    if use_entropy:
+        sdf,_= sdf_map(pc)
+    else:
+        sdf = sdf_map(pc)
     sdf_grad = fc_map.gradient(pc, sdf)
 
     surface_normals_W = - sdf_grad / \

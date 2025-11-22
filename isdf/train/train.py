@@ -30,6 +30,7 @@ def train(
     extra_opt_steps = 400,
     # save
     save_path=None,
+    use_entropy=False
 ):
     # init trainer-------------------------------------------------------------
     isdf_trainer = trainer.Trainer(
@@ -37,7 +38,8 @@ def train(
         config_file,
         chkpt_load_file=chkpt_load_file,
         incremental=incremental,
-        grid_dim = grid_dim
+        grid_dim = grid_dim,
+        use_entropy=use_entropy
     )
 
     # saving init--------------------------------------------------------------
@@ -73,8 +75,8 @@ def train(
     # live vis init--------------------------------------------------------------
     # if isdf_trainer.live:
     kf_vis = None
-    cv2.namedWindow('iSDF keyframes', cv2.WINDOW_AUTOSIZE)
-    cv2.moveWindow("iSDF keyframes", 100, 700)
+    # cv2.namedWindow('iSDF keyframes', cv2.WINDOW_AUTOSIZE)
+    # cv2.moveWindow("iSDF keyframes", 100, 700)
 
     # main  loop---------------------------------------------------------------
     print("Starting training for max", isdf_trainer.n_steps, "steps...")
@@ -129,8 +131,8 @@ def train(
             if t == 0 or (isdf_trainer.last_is_keyframe and not add_new_frame):
                 kf_vis = visualisation.draw.add_im_to_vis(
                     kf_vis, isdf_trainer.frames.im_batch_np[-1], reduce_factor=6)
-                cv2.imshow('iSDF keyframes', kf_vis)
-                cv2.waitKey(1)
+                # cv2.imshow('iSDF keyframes', kf_vis)
+                # cv2.waitKey(1)
 
         # optimisation step---------------------------------------------
         losses, step_time = isdf_trainer.step()
@@ -240,18 +242,36 @@ def train(
 
         elapsed_eval = isdf_trainer.tot_step_time - last_eval
         if isdf_trainer.do_eval and elapsed_eval > isdf_trainer.eval_freq_s:
+            ratio=1
+            if use_entropy:
+                model= isdf_trainer.sdf_map
+                model.update(force=True,update_quantiles=False)
+                print(f"Compressed File size = {len(model.compress()) / 1024 } kB")
+                model.cpu()
+                model.eval()
+                parameters_size,tables_size=model.get_rate()
+                compressed_size=parameters_size+tables_size
+                original_size=model.get_original_size()
+                print(f"Parameters size: {parameters_size}, Table size: {tables_size} Original size: {original_size}")
+                print("Compression Ratio: "+str(original_size/compressed_size))
+                ratio=original_size/compressed_size
+                model.to(device)
             last_eval = isdf_trainer.tot_step_time - \
                 isdf_trainer.tot_step_time % isdf_trainer.eval_freq_s
 
             if isdf_trainer.sdf_eval and isdf_trainer.gt_sdf_file is not None:
                 visible_res = isdf_trainer.eval_sdf(visible_region=True)
+
                 obj_errors = isdf_trainer.eval_object_sdf()
 
                 print("Time ---------->", isdf_trainer.tot_step_time)
                 print("Visible region SDF error: {:.4f}".format(
                     visible_res["av_l1"]))
-                print("Objects SDF error: ", obj_errors)
+                if show_obj:
+                    print("Objects SDF error: ", obj_errors)
+                
 
+                
                 if not incremental:
                     full_vol_res = isdf_trainer.eval_sdf(visible_region=False)
                     print("Full region SDF error: {:.4f}".format(
@@ -273,7 +293,12 @@ def train(
                         'acc': acc,
                         'comp': comp,
                     }
-
+                    if use_entropy:
+                        res['mesh_eval'][t]['compression ratio']=ratio
+            # evaluate entropy rate
+            isdf_trainer.sdf_map.train()
+            
+            
             if save:
                 with open(os.path.join(save_path, 'res.json'), 'w') as f:
                     json.dump(res, f, indent=4)
@@ -299,12 +324,18 @@ if __name__ == "__main__":
         action="store_true",
         help="run headless (i.e. no visualisations)"
     )
+    parser.add_argument(
+        "-et","--use_entropy",
+        action="store_true",
+        help="use entropy coding"
+    )
     args, _ = parser.parse_known_args()  # ROS adds extra unrecongised args
 
     config_file = args.config
     headless = args.headless
     incremental = args.no_incremental
     chkpt_load_file = None
+    use_entropy = args.use_entropy
 
     # vis
     show_obj = False
@@ -315,15 +346,18 @@ if __name__ == "__main__":
         update_mesh_freq = None
 
     # save
-    save = False
+    save = True
     if save:
         now = datetime.now()
         time_str = now.strftime("%m-%d-%y_%H-%M-%S")
         save_path = "../../results/iSDF/" + time_str
+        if use_entropy:
+            save_path=save_path+"_entropy"
         os.mkdir(save_path)
     else:
         save_path = None
-
+        
+    
     scenes = train(
         device,
         config_file,
@@ -335,6 +369,7 @@ if __name__ == "__main__":
         update_mesh_freq=update_mesh_freq,
         # save
         save_path=save_path,
+        use_entropy=use_entropy
     )
 
     if headless:
