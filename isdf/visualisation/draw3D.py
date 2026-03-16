@@ -160,7 +160,7 @@ def draw_mesh(sdf, scale=None, transform=None, color_by="normals"):
     return mesh
 
 
-def capture_scene_im(
+def  capture_scene_im(
     scene, pose, tm_pose=False, resolution=(1080, 720)
 ):
     if not tm_pose:
