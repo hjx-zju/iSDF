@@ -17,18 +17,18 @@
         }
     },
     "eval": {
-        "do_vox_comparison": 0,
+        "do_vox_comparison": 1,
         "eval_pts_root": "../../data/eval_pts/",
-        "do_eval": 0,
-        "eval_freq_s": 1,
+        "do_eval": 1,
+        "eval_freq_s": 2,
         "sdf_eval": 1,
         "mesh_eval": 0
     },
     "save": {
         "save_period": 10,
         "save_checkpoints": 0,
-        "save_slices": 0,
-        "save_meshes": 0
+        "save_slices": 1,
+        "save_meshes": 1
     },
     "optimiser": {
         "lr": 0.0013,
@@ -66,7 +66,9 @@
             "gauss_embed": 0,
             "gauss_embed_std": 11,
             "optim_embedding": 0            
-        }
+        },
+        "lambda_RD": 1e-15
+
     },
     "loss": {
         "bounds_method": "ray",

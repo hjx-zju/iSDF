@@ -422,8 +422,7 @@ def create_configs_nruns(
                 config['save']['save_slices'] = 0
 
             save_path = save_root + \
-                config['dataset']['seq_dir'].split('/')[-2] + \
-                "_" + str(r)
+                config['dataset']['seq_dir'].split('/')[-2] 
             os.makedirs(save_path, exist_ok=True)
 
             config_file = save_path + "/config.json"

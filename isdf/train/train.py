@@ -67,6 +67,8 @@ def train(
             res['sdf_eval'] = {}
         if isdf_trainer.mesh_eval:
             res['mesh_eval'] = {}
+        if use_entropy:
+            res['compress_model_size']={}
     if isdf_trainer.do_vox_comparison:
         vox_res = {}
 
@@ -247,6 +249,7 @@ def train(
                 model= isdf_trainer.sdf_map
                 model.update(force=True,update_quantiles=False)
                 print(f"Compressed File size = {len(model.compress()) / 1024 } kB")
+                # model.decompress(model.compress())
                 model.cpu()
                 model.eval()
                 parameters_size,tables_size=model.get_rate()
@@ -255,6 +258,7 @@ def train(
                 print(f"Parameters size: {parameters_size}, Table size: {tables_size} Original size: {original_size}")
                 print("Compression Ratio: "+str(original_size/compressed_size))
                 ratio=original_size/compressed_size
+
                 model.to(device)
             last_eval = isdf_trainer.tot_step_time - \
                 isdf_trainer.tot_step_time % isdf_trainer.eval_freq_s
@@ -295,6 +299,7 @@ def train(
                     }
                     if use_entropy:
                         res['mesh_eval'][t]['compression ratio']=ratio
+                        res['compress_model_size'][t]=len(model.compress())/1024/1024 # MB
             # evaluate entropy rate
             isdf_trainer.sdf_map.train()
             

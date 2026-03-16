@@ -1,14 +1,16 @@
 {
     "dataset": {
         "format": "realsense",
+        "seq_dir": "../../data/seqs/apt_667_nav/",
         "depth_scale": 1000.0,
+        "fps": 30,
         "camera": {
             "w": 1280,
             "h": 720,
-            "fx": 911.83203125,
-            "fy": 911.8446044921875, 
-            "cx": 641.7367553710938,
-            "cy": 380.51593017578125
+            "fx": 911.241455078125,
+            "fy": 911.3958129882812,
+            "cx": 643.4754638671875,
+            "cy": 377.80902099609375
         }
     },
     "eval": {
@@ -22,8 +24,8 @@
     "save": {
         "save_period": 10,
         "save_checkpoints": 0,
-        "save_slices": 0,
-        "save_meshes": 0
+        "save_slices": 1,
+        "save_meshes": 1
     },
 
     "optimiser": {
@@ -39,7 +41,7 @@
         "n_strat_samples": 19,
         "n_surf_samples": 8,
         "_depth_range": "[0.6, 6.0] for D455, [0.3, 3.0] for D435 ",
-        "depth_range": [0.15, 3.0],
+        "depth_range": [0.3, 3.0],
         "dist_behind_surf": 0.1
     },
     "model": {
@@ -66,7 +68,7 @@
         }
     },
     "loss": {
-        "bounds_method": "ray",
+        "bounds_method": "pc",
         "loss_type": "L1",
         "trunc_weight": 5.38344020,
         "trunc_distance": 0.29365022,

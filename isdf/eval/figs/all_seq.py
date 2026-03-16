@@ -593,11 +593,13 @@ if __name__ == "__main__":
     incSDF_root = git.Repo(
         '.', search_parent_directories=True).working_tree_dir
 
-    save_dir = incSDF_root + "results/figs/all_seq_plots/"
+    # save_dir = incSDF_root + "results/figs/all_seq_plots/"
+    save_dir="/home/hjx/iSDF/results/figs/all_seq_plots/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
-    isdf_dir = incSDF_root + "/results/iSDF/exp0/"
+    # isdf_dir = incSDF_root + "/results/iSDF/exp0/"
+    isdf_dir = "/home/hjx/iSDF/results/iSDF/exp0/"
     # voxblox_dir = incSDF_root + "/results/voxblox/5.5cm/"
     # gpuf_dir = incSDF_root + "/results/kinectfusion+/7cm_unocc/"
     voxblox_dir = None

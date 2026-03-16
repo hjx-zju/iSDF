@@ -52,7 +52,7 @@ config_files, save_paths = batch_utils.create_configs_nruns(
     scannet_root,
     save_root,
     runs_per_seq=10,
-    save_slices=False
+    save_slices=True
 )
 
 

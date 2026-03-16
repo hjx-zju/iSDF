@@ -84,7 +84,7 @@ def get_last_eval_t(ours_root, exp):
     with open(conf_file, 'r') as f:
         config = json.load(f)
 
-    eval_pts_dir = "/home/joe/projects/incSDF/incSDF/data/eval_pts/vox/"
+    eval_pts_dir = "/home/hjx/dataset/iSDF/eval_pts/vox/"
     if config["model"]["frac_time_perception"] == 1.:
         eval_pts_dir += "0.055/"
     elif config["model"]["frac_time_perception"] == 0.75:

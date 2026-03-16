@@ -85,8 +85,8 @@ class ScanNetDataset(Dataset):
     ):
 
         self.root_dir = root_dir
-        self.rgb_dir = os.path.join(root_dir, "frames", "color/")
-        self.depth_dir = os.path.join(root_dir, "frames", "depth/")
+        self.rgb_dir = os.path.join(root_dir,  "color/")
+        self.depth_dir = os.path.join(root_dir, "depth/")
         if traj_file is not None:
             self.Ts = np.loadtxt(traj_file).reshape(-1, 4, 4)
         self.rgb_transform = rgb_transform
@@ -213,8 +213,8 @@ class SceneCache(Dataset):
                     depth_file = self.root_dir + "/depth" + s + ".png"
                 rgb_file = self.root_dir + "/frame" + s + col_ext
             elif dataset_format == "ScanNet":
-                depth_file = root_dir + "/frames/depth/" + str(idx) + ".png"
-                rgb_file = root_dir + "/frames/color/" + str(idx) + col_ext
+                depth_file = root_dir + "/depth/" + str(idx) + ".png"
+                rgb_file = root_dir + "/color/" + str(idx) + col_ext
 
             depth = cv2.imread(depth_file, -1)
             image = cv2.imread(rgb_file)
@@ -226,8 +226,8 @@ class SceneCache(Dataset):
                 depth = self.depth_transform(depth)
 
             self.samples.append((image, depth, self.Ts[idx]))
-
-        self.samples = np.array(self.samples)
+        # print(len(self.samples))
+        self.samples = np.array(self.samples,dtype=object)
         print("Len cached dataset", len(self.samples))
 
     def __len__(self):
@@ -336,6 +336,98 @@ class ROSSubscriber(Dataset):
                     "T": Twc,
                 }
                 return sample
+
+
+# Offline ROSBag Dataset - load preprocessed rosbag data from disk
+class OfflineROSBagDataset(Dataset):
+    def __init__(
+        self,
+        root_dir,
+        traj_file,
+        rgb_transform=None,
+        depth_transform=None,
+        col_ext=".jpg",
+        noisy_depth=None,
+        distortion_coeffs=None,
+        camera_matrix=None,
+    ):
+        self.root_dir = root_dir
+        # self.rgb_dir = os.path.join(root_dir, "rgb")
+        # self.depth_dir = os.path.join(root_dir, "depth")
+        
+        # Load trajectory file
+        if traj_file is not None:
+            self.Ts = np.loadtxt(traj_file).reshape(-1, 4, 4)
+        else:
+            raise ValueError("traj_file is required for OfflineROSBagDataset")
+        
+        self.rgb_transform = rgb_transform
+        self.depth_transform = depth_transform
+        self.col_ext = col_ext
+        
+        # Camera parameters for undistortion
+        self.distortion_coeffs = None
+        if distortion_coeffs is not None:
+            self.distortion_coeffs = np.array(distortion_coeffs)
+        self.camera_matrix = camera_matrix
+        
+        # Preload and process all samples
+        self.samples = []
+        print("Loading offline ROSBag dataset...")
+        for idx in range(self.Ts.shape[0]):
+            # Load RGB and depth files
+            depth_file = os.path.join(self.root_dir, f"depth{idx:06}.png")
+            rgb_file = os.path.join(self.root_dir, f"frame{idx:06}{self.col_ext}")
+            
+            # Check if files exist
+            if not os.path.exists(depth_file) or not os.path.exists(rgb_file):
+                print(f"Warning: Missing files for frame {idx}, skipping...")
+                continue
+            
+            depth = cv2.imread(depth_file, -1)
+            image = cv2.imread(rgb_file)
+            
+            # Apply transforms
+            if self.rgb_transform:
+                image = self.rgb_transform(image)
+            
+            if self.depth_transform:
+                depth = self.depth_transform(depth)
+            
+            # Undistort depth if camera parameters are provided
+            if self.distortion_coeffs is not None and self.camera_matrix is not None:
+                img_size = (depth.shape[1], depth.shape[0])
+                map1, map2 = cv2.initUndistortRectifyMap(
+                    self.camera_matrix, self.distortion_coeffs, np.eye(3),
+                    self.camera_matrix, img_size, cv2.CV_32FC1)
+                depth = cv2.remap(depth, map1, map2, cv2.INTER_NEAREST)
+            
+            # Store processed sample
+            self.samples.append((image, depth, self.Ts[idx]))
+        
+        self.samples = np.array(self.samples, dtype=object)
+        print(f"Loaded {len(self.samples)} frames from offline ROSBag dataset")
+    
+    def __len__(self):
+        return len(self.samples)
+    
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        
+        # Handle single index
+        image = self.samples[idx][0]
+        depth = self.samples[idx][1]
+        T = self.samples[idx][2]
+        
+        
+        sample = {
+            "image": image,
+            "depth": depth,
+            "T": T
+        }
+        
+        return sample
 
 
 # Consume RGBD + pose data from an IOS device with a Lidar

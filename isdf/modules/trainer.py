@@ -250,7 +250,8 @@ class Trainer:
         self.kf_pixel_ratio = self.config["model"]["kf_pixel_ratio"]
 
         embed_config = self.config["model"]["embedding"]
-        self.lambda_RD=self.config["model"]["lambda_RD"]
+        if self.use_entropy:
+            self.lambda_RD=self.config["model"]["lambda_RD"]
         # scaling applied to coords before embedding
         self.scale_input = embed_config["scale_input"]
         self.n_embed_funcs = embed_config["n_embed_funcs"]
@@ -519,6 +520,14 @@ class Trainer:
             self.up = np.array([0.0, 0.0, 1.0])
             ims_file = self.ext_calib  # extrinsic calib
             self.traj_file = None
+            camera_matrix = np.array(
+                [[self.fx, 0.0, self.cx], [0.0, self.fy, self.cy], [0.0, 0.0, 1.0]]
+            )
+        elif self.dataset_format == "realsense_my":
+            dataset_class = dataset.OfflineROSBagDataset
+            col_ext = ".png"
+            self.up = np.array([0.0, 0.0, 1.0])
+            ims_file = self.ims_file
             camera_matrix = np.array(
                 [[self.fx, 0.0, self.cx], [0.0, self.fy, self.cy], [0.0, 0.0, 1.0]]
             )
