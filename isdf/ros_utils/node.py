@@ -18,6 +18,50 @@ from sensor_msgs.msg import Image # ROS message type
 from geometry_msgs.msg import Pose # ROS message type
 from matplotlib import pyplot as plt
 
+
+def get_rosbag_save_dir():
+    save_dir = os.environ.get("ISDF_ROSBAG_SAVE_DIR")
+    if save_dir is None:
+        return None
+    save_dir = save_dir.strip()
+    return save_dir if save_dir else None
+
+
+class RosbagFrameSaver:
+    def __init__(self, root_dir="/home/hjx/dataset/iSDF/rosbag"):
+        self.root_dir = root_dir
+        self.results_dir = os.path.join(self.root_dir, "results")
+        self.traj_path = os.path.join(self.root_dir, "traj.txt")
+        os.makedirs(self.results_dir, exist_ok=True)
+
+        # Start a new sequence from index 0 each run.
+        self.traj_file = open(self.traj_path, "w", encoding="utf-8")
+        self.frame_idx = 0
+
+    def save(self, rgb_np, depth_np, camera_transform):
+        idx_str = f"{self.frame_idx:06d}"
+        rgb_path = os.path.join(self.results_dir, f"frame{idx_str}.png")
+        depth_path = os.path.join(self.results_dir, f"depth{idx_str}.png")
+
+        # OpenCV writes color images as BGR, while pipeline tensor is RGB.
+        bgr_np = cv2.cvtColor(rgb_np, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(rgb_path, bgr_np)
+        cv2.imwrite(depth_path, depth_np)
+
+        flat_pose = camera_transform.reshape(-1)
+        pose_line = " ".join(f"{val:.10f}" for val in flat_pose)
+        self.traj_file.write(pose_line + "\n")
+        self.traj_file.flush()
+
+        self.frame_idx += 1
+
+    def __del__(self):
+        try:
+            self.traj_file.close()
+        except Exception:
+            pass
+
+
 class iSDFNode:
     
     def __init__(self, queue, crop=False) -> None:
@@ -27,6 +71,13 @@ class iSDFNode:
         self.queue = queue
 
         self.crop = crop
+        save_dir = get_rosbag_save_dir()
+        if save_dir is None:
+            print("iSDF Node: rosbag saving disabled (ISDF_ROSBAG_SAVE_DIR not set)")
+            self.saver = None
+        else:
+            print("iSDF Node: rosbag save dir:", save_dir)
+            self.saver = RosbagFrameSaver(save_dir)
 
         # self.first_pose_inv = None
         # self.world_transform = trimesh.transformations.rotation_matrix(
@@ -38,9 +89,6 @@ class iSDFNode:
         rospy.spin()
 
     def callback(self, msg):
-        if self.queue.full():
-            return
-
         # start = perf_counter()
 
         rgb_np = np.frombuffer(msg.rgb.data, dtype=np.uint8)
@@ -75,19 +123,23 @@ class iSDFNode:
 
         camera_transform = np.linalg.inv(camera_transform)
 
+        if self.saver is not None:
+            self.saver.save(rgb_np, depth_np, camera_transform)
+
         # if self.first_pose_inv is None: 
         #     self.first_pose_inv = np.linalg.inv(camera_transform)
         # camera_transform = self.first_pose_inv @ camera_transform
 
         # camera_transform = camera_transform @ self.world_transform
 
-        try:
-            self.queue.put(
-                (rgb_np.copy(), depth_np.copy(), camera_transform.copy()),
-                block=False,
-            )
-        except queue.Full:
-            pass
+        if not self.queue.full():
+            try:
+                self.queue.put(
+                    (rgb_np.copy(), depth_np.copy(), camera_transform.copy()),
+                    block=False,
+                )
+            except queue.Full:
+                pass
 
         del rgb_np
         del depth_np
@@ -104,6 +156,13 @@ class iSDFFrankaNode:
         self.queue = queue
         self.crop = crop
         self.camera_transform = None 
+        save_dir = get_rosbag_save_dir()
+        if save_dir is None:
+            print("iSDF Franka Node: rosbag saving disabled (ISDF_ROSBAG_SAVE_DIR not set)")
+            self.saver = None
+        else:
+            print("iSDF Franka Node: rosbag save dir:", save_dir)
+            self.saver = RosbagFrameSaver(save_dir)
 
         self.cal = ext_calib
 
@@ -130,6 +189,9 @@ class iSDFFrankaNode:
         if self.depth is None or self.pose is None: 
             return
         # self.show_rgbd(self.rgb, self.depth, 0)
+
+        if self.saver is not None:
+            self.saver.save(self.rgb, self.depth, self.pose)
 
         try:
             self.queue.put(

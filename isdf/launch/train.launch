@@ -1,5 +1,7 @@
 <launch>
-    <arg name="show_orbslam_vis" default="true"/>
+    <arg name="show_orbslam_vis" default="false"/>
+    <arg name="rosbag_save_dir" default="/home/hjx/dataset/iSDF/seqs/rosbag"/>
+    <arg name="mesh_export_path" default="/home/hjx/dataset/iSDF/seqs/rosbag/mesh.ply"/>
 
     <!-- Launch ORB-SLAM3 which internally launches camera -->
     <include file="$(find orb_slam3_ros_wrapper)/launch/run_realsense.launch">
@@ -7,6 +9,8 @@
     </include>
 
     <!-- Launch iSDF node -->
-	<node pkg="isdf" name="isdf_train" type="train_vis.py" output="screen" args="--config $(find isdf)/train/configs/realsense_my.json"/>
+	<node pkg="isdf" name="isdf_train" type="train_vis.py" output="screen" args="--config $(find isdf)/train/configs/realsense_my.json --export_mesh_path $(arg mesh_export_path)">
+        <env name="ISDF_ROSBAG_SAVE_DIR" value="$(arg rosbag_save_dir)"/>
+    </node>
 
 </launch>

@@ -6,7 +6,6 @@
 
 import torch
 import numpy as np
-import json
 import os
 from datetime import datetime
 import argparse
@@ -15,6 +14,35 @@ import cv2
 import open3d.visualization.gui as gui
 from isdf.visualisation import isdf_window
 from isdf.modules import trainer
+
+
+# def export_mesh_and_sdf(isdf_trainer, mesh_path):
+#     os.makedirs(os.path.dirname(mesh_path) or ".", exist_ok=True)
+
+#     # Export final mesh snapshot.
+#     isdf_trainer.write_mesh(mesh_path)
+
+#     # Export SDF grid and affine transform (voxel index -> world).
+#     sdf = isdf_trainer.get_sdf_grid().detach().cpu().numpy()
+#     dim = int(isdf_trainer.grid_dim)
+
+#     linear = isdf_trainer.bounds_transform_np[:3, :3] @ np.diag(
+#         isdf_trainer.scene_scale_np
+#     )
+#     if dim > 1:
+#         voxel_step = 2.0 / (dim - 1)
+#     else:
+#         voxel_step = 0.0
+#     transform = np.eye(4, dtype=np.float64)
+#     transform[:3, :3] = linear * voxel_step
+#     transform[:3, 3] = (
+#         isdf_trainer.bounds_transform_np[:3, 3]
+#         - linear @ np.ones(3, dtype=np.float64)
+#     )
+
+#     out_dir = os.path.dirname(mesh_path) or "."
+#     np.save(os.path.join(out_dir, "sdf.npy"), sdf)
+#     np.savetxt(os.path.join(out_dir, "transform.txt"), transform)
 
 
 def optim_iter(trainer, t):
@@ -71,6 +99,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="iSDF.")
     parser.add_argument("--config", type=str, required=True, help="input json config")
+    # parser.add_argument(
+    #     "--export_mesh_path",
+    #     type=str,
+    #     default="",
+    #     help="optional output mesh file path, e.g. /tmp/final.ply",
+    # )
     parser.add_argument(
         "-ni",
         "--no_incremental",
@@ -80,6 +114,11 @@ if __name__ == "__main__":
     args, _ = parser.parse_known_args()  # ROS adds extra unrecongised args
     config_file = args.config
     incremental = args.no_incremental
+    export_mesh_path = args.export_mesh_path.strip()
+
+    if not export_mesh_path:
+        now = datetime.now().strftime("%m-%d-%y_%H-%M-%S")
+        export_mesh_path = os.path.join("../../results/iSDF", f"vis_final_{now}.ply")
 
     # init trainer-------------------------------------------------------------
     isdf_trainer = trainer.Trainer(
@@ -98,3 +137,11 @@ if __name__ == "__main__":
         mono,
     )
     app.run()
+
+    # export_mesh_and_sdf(isdf_trainer, export_mesh_path)
+    # print("Exported mesh to", export_mesh_path)
+    # print("Exported SDF to", os.path.join(os.path.dirname(export_mesh_path) or ".", "sdf.npy"))
+    # print(
+    #     "Exported transform to",
+    #     os.path.join(os.path.dirname(export_mesh_path) or ".", "transform.txt"),
+    # )
